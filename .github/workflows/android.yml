@@ -8,6 +8,9 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write   # necessário para publicar o APK num Release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,6 +28,10 @@ jobs:
 
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # O pacote legado "tools" foi removido pela Google e faz a action
+          # falhar por omissão; instalamos só o que o projeto precisa (SDK 34).
+          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
 
       - name: Dar permissão ao gradlew
         run: chmod +x gradlew
@@ -38,3 +45,18 @@ jobs:
           name: tracker-apk
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      # Publica o APK num Release (prerelease "apk-latest", sempre atualizado)
+      # para ficar fácil de descarregar na página de Releases do repositório.
+      - name: Publicar APK no Release "apk-latest"
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: APK mais recente
+          prerelease: true
+          files: android/app/build/outputs/apk/release/*.apk
+          body: |
+            APK do Tracker compilado automaticamente a partir do último build.
+            Assinado com a chave de *debug* (uso pessoal). Descarrega o
+            `app-release.apk` abaixo e instala no telemóvel.
