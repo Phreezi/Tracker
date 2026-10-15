@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Tracker</string>
+    <string name="notif_channel">Partilha de localização</string>
+    <string name="notif_title">Localização a ser partilhada</string>
+    <string name="notif_text">A enviar a localização para o painel da família.</string>
+</resources>

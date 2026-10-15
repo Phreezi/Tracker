@@ -1,0 +1,15 @@
+# Node
+node_modules/
+server/data/
+server/.env
+*.log
+
+# Android / Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+*.apk
+*.keystore
+.idea/
