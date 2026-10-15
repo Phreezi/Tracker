@@ -29,6 +29,11 @@ computador ou no iPhone.
   - mostra a bateria e há quanto tempo foi o último sinal;
   - tudo protegido por **palavra-passe** (painel) e **token** (telemóvel).
 
+- **Aba "Pessoal"** no painel (por baixo das *Definições*): partilha a **tua própria**
+  localização diretamente do navegador, sem instalares a app no teu telemóvel. Como o painel
+  já está protegido por palavra-passe, basta manter a página aberta — a tua posição aparece no
+  mapa com um marcador verde, guardada à parte da do telemóvel monitorizado.
+
 Sem base de dados externa nem dependências: só Node.js (usa o SQLite embutido).
 
 ---

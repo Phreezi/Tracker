@@ -42,6 +42,18 @@ db.exec(`
     received INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS points_t ON points(t);
+  -- Localizações do próprio admin, partilhadas pelo navegador (aba "Pessoal").
+  -- Guardadas à parte para não se misturarem com o telemóvel monitorizado.
+  CREATE TABLE IF NOT EXISTS me_points (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    t INTEGER NOT NULL,
+    lat REAL NOT NULL,
+    lng REAL NOT NULL,
+    acc REAL,
+    spd REAL,
+    received INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS me_points_t ON me_points(t);
   CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 `);
 
@@ -91,10 +103,22 @@ const selectRange = db.prepare(
 );
 const selectLast = db.prepare('SELECT t, lat, lng, acc, spd, bat FROM points ORDER BY t DESC LIMIT 1');
 const pruneOld = db.prepare('DELETE FROM points WHERE t < ?');
+
+// Pontos pessoais (admin via navegador).
+const insertMePoint = db.prepare(
+  'INSERT INTO me_points (t, lat, lng, acc, spd, received) VALUES (?, ?, ?, ?, ?, ?)'
+);
+const selectMeRange = db.prepare(
+  'SELECT t, lat, lng, acc, spd FROM me_points WHERE t >= ? AND t < ? ORDER BY t'
+);
+const selectMeLast = db.prepare('SELECT t, lat, lng, acc, spd FROM me_points ORDER BY t DESC LIMIT 1');
+const pruneMeOld = db.prepare('DELETE FROM me_points WHERE t < ?');
+
 // Limpa pontos mais antigos que a retenção, uma vez por dia.
 function prune() {
   const cutoff = Date.now() - RETENTION_DAYS * 86400_000;
   try { pruneOld.run(cutoff); } catch (_) {}
+  try { pruneMeOld.run(cutoff); } catch (_) {}
 }
 prune();
 setInterval(prune, 86400_000).unref();
@@ -400,6 +424,46 @@ const server = http.createServer(async (req, res) => {
         if (data.schedule && typeof data.schedule === 'object') next.schedule = sanitizeSchedule(data.schedule);
         setKv('settings', next);
         return sendJson(res, 200, { ok: true, settings: next });
+      }
+
+      // --- Aba "Pessoal": a minha própria localização, partilhada pelo navegador.
+      // Protegida apenas pela sessão do painel (não usa o token do dispositivo).
+
+      // Recebe um ponto do navegador do admin.
+      if (p === '/api/me/ingest' && method === 'POST') {
+        let data;
+        try { data = JSON.parse(await readBody(req)); }
+        catch { return sendJson(res, 400, { ok: false, error: 'json inválido' }); }
+        const lat = num(data.lat), lng = num(data.lng);
+        if (lat === null || lng === null || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          return sendJson(res, 400, { ok: false, error: 'coordenadas inválidas' });
+        }
+        const now = Date.now();
+        let t = num(data.t);
+        if (t === null || t <= 0 || t > now + 300_000) t = now;
+        insertMePoint.run(Math.round(t), lat, lng, num(data.acc), num(data.spd), now);
+        return sendJson(res, 200, { ok: true });
+      }
+
+      // Última posição pessoal.
+      if (p === '/api/me/last' && method === 'GET') {
+        const last = selectMeLast.get();
+        return sendJson(res, 200, { ok: true, point: last || null, serverTime: Date.now() });
+      }
+
+      // Histórico pessoal de um dia (ou intervalo from/to), igual ao /api/track.
+      if (p === '/api/me/track' && method === 'GET') {
+        let from = num(url.searchParams.get('from'));
+        let to = num(url.searchParams.get('to'));
+        const day = url.searchParams.get('day');
+        if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) {
+          const bounds = dayBoundsMs(day);
+          from = bounds.from; to = bounds.to;
+        }
+        if (from === null) from = Date.now() - 24 * 3600_000;
+        if (to === null) to = Date.now() + 1;
+        const rows = selectMeRange.all(Math.round(from), Math.round(to));
+        return sendJson(res, 200, { ok: true, points: rows, count: rows.length });
       }
 
       // Ativa/desliga o "modo ao vivo" (intervalo curto) por N minutos.
