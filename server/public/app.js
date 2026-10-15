@@ -205,6 +205,64 @@ $('schoolHere').onclick = () => {
   drawSchoolPreview();
 };
 
+// --- Pessoal: a minha própria localização (via navegador) --------------------
+let meMarker, meAccCircle, meWatchId = null, meLastSent = 0;
+
+function setMeMarker(pt) {
+  const ll = [pt.lat, pt.lng];
+  if (!meMarker) {
+    meMarker = L.circleMarker(ll, { radius: 9, color: '#3ecf8e', fillColor: '#3ecf8e', fillOpacity: 0.9, weight: 2 }).addTo(map);
+    meAccCircle = L.circle(ll, { radius: pt.acc || 0, color: '#3ecf8e', opacity: 0.25, fillOpacity: 0.08 }).addTo(map);
+  } else {
+    meMarker.setLatLng(ll);
+    meAccCircle.setLatLng(ll).setRadius(pt.acc || 0);
+  }
+  meMarker.bindPopup(`Eu · ${fmtTime(pt.t)}<br>precisão ±${Math.round(pt.acc || 0)} m`);
+}
+
+async function refreshMe() {
+  try {
+    const d = await api('/api/me/last');
+    if (d.point) setMeMarker(d.point);
+  } catch (e) { /* silencioso */ }
+}
+
+async function sendMePosition(pos) {
+  const c = pos.coords;
+  const body = {
+    lat: c.latitude, lng: c.longitude,
+    acc: c.accuracy ?? null,
+    spd: c.speed ?? null,
+    t: pos.timestamp || Date.now(),
+  };
+  try {
+    await api('/api/me/ingest', { method: 'POST', body: JSON.stringify(body) });
+    meLastSent = Date.now();
+    setMeMarker({ lat: body.lat, lng: body.lng, acc: body.acc, t: body.t });
+    $('meState').textContent = `A partilhar · último envio ${fmtClock(meLastSent)} (±${Math.round(body.acc || 0)} m).`;
+  } catch (e) {
+    $('meState').textContent = 'Erro a enviar: ' + e.message;
+  }
+}
+
+function startMeShare() {
+  if (!('geolocation' in navigator)) { $('meState').textContent = 'Este navegador não suporta localização.'; return; }
+  if (meWatchId !== null) return;
+  $('meState').textContent = 'A pedir permissão de localização…';
+  meWatchId = navigator.geolocation.watchPosition(
+    sendMePosition,
+    (err) => { $('meState').textContent = 'Localização indisponível: ' + err.message; },
+    { enableHighAccuracy: true, maximumAge: 15000, timeout: 30000 }
+  );
+}
+
+function stopMeShare() {
+  if (meWatchId !== null) { navigator.geolocation.clearWatch(meWatchId); meWatchId = null; }
+  $('meState').textContent = 'Parado.';
+}
+$('meStart').onclick = startMeShare;
+$('meStop').onclick = stopMeShare;
+
 // --- Modo ao vivo ------------------------------------------------------------
 async function setLive(minutes) {
   await api('/api/live', { method: 'POST', body: JSON.stringify({ minutes }) });
@@ -234,8 +292,9 @@ async function start() {
   } catch (e) { if (e.message === 'não autenticado') return; }
   $('day').value = todayStr();
   await refreshLast();
+  await refreshMe();
   if (timer) clearInterval(timer);
-  timer = setInterval(refreshLast, 10000);
+  timer = setInterval(() => { refreshLast(); refreshMe(); }, 10000);
 }
 
 // Tenta entrar diretamente (cookie já válido?).
