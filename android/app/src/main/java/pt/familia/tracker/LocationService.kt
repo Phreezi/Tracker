@@ -40,7 +40,6 @@ class LocationService : Service() {
     private lateinit var fused: FusedLocationProviderClient
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
-    @Volatile private var liveUntil: Long = 0L
     private var currentInterval = -1
     private var currentMinDistance = -1
 
@@ -133,22 +132,8 @@ class LocationService : Service() {
         // Limita a fila para não crescer sem limite offline.
         while (queue.size > MAX_QUEUE) queue.removeAt(0)
 
-        val result = Uploader.send(this, queue)
-        if (result.ok) {
-            saveQueue(emptyList())
-            applyConfig(result)
-        } else {
-            saveQueue(queue)
-        }
-    }
-
-    private fun applyConfig(r: IngestResult) {
-        var changed = false
-        r.intervalSec?.let { if (it in 5..3600 && it != Prefs.intervalSec(this)) { Prefs.setIntervalSec(this, it); changed = true } }
-        r.minDistanceM?.let { if (it in 0..5000 && it != Prefs.minDistanceM(this)) { Prefs.setMinDistanceM(this, it); changed = true } }
-        r.heartbeatMin?.let { if (it in 1..240) Prefs.setHeartbeatMin(this, it) }
-        liveUntil = r.liveUntil
-        if (changed) main.post { startUpdates() }
+        val ok = FirestoreUploader.send(this, queue)
+        if (ok) saveQueue(emptyList()) else saveQueue(queue)
     }
 
     // --- Fila persistente (ficheiro JSON por linha) --------------------------

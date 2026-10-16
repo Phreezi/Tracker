@@ -17,13 +17,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Ecrã de configuração: URL do servidor, token e botões de permissões.
+ * Ecrã de configuração: conta do telemóvel (SIPFA), palavra-passe e permissões.
  * Construído em código para não depender de recursos de layout.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var urlField: EditText
-    private lateinit var tokenField: EditText
+    private lateinit var emailField: EditText
+    private lateinit var passwordField: EditText
     private lateinit var status: TextView
 
     private val fineLauncher =
@@ -48,25 +48,25 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, pad)
         })
 
-        root.addView(label("Endereço do servidor (ex.: https://o-meu-servidor.com)"))
-        urlField = EditText(this).apply {
-            inputType = InputType.TYPE_TEXT_VARIATION_URI
-            hint = "https://..."
-            setText(Prefs.serverUrl(this@MainActivity))
+        root.addView(label("Conta do telemóvel (SIPFA / Firebase)"))
+        emailField = EditText(this).apply {
+            inputType = InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            hint = "tracker@sipfa.local"
+            setText(Prefs.accountEmail(this@MainActivity))
         }
-        root.addView(urlField)
+        root.addView(emailField)
 
-        root.addView(label("Token do dispositivo (o mesmo do servidor)"))
-        tokenField = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-            hint = "DEVICE_TOKEN"
-            setText(Prefs.deviceToken(this@MainActivity))
+        root.addView(label("Palavra-passe da conta"))
+        passwordField = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            hint = "palavra-passe"
+            setText(Prefs.accountPassword(this@MainActivity))
         }
-        root.addView(tokenField)
+        root.addView(passwordField)
 
         root.addView(button("Guardar configuração") {
-            Prefs.setServerUrl(this, urlField.text.toString())
-            Prefs.setDeviceToken(this, tokenField.text.toString())
+            Prefs.setAccountEmail(this, emailField.text.toString())
+            Prefs.setAccountPassword(this, passwordField.text.toString())
             toast("Guardado.")
             refresh()
         })
@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(spacer(pad))
         root.addView(button("▶ Iniciar partilha") {
-            if (!Prefs.isConfigured(this)) { toast("Preenche o servidor e o token primeiro."); return@button }
+            if (!Prefs.isConfigured(this)) { toast("Preenche a conta e a palavra-passe primeiro."); return@button }
             if (!hasFine()) { toast("Falta a permissão de localização."); return@button }
             Prefs.setEnabled(this, true)
             LocationService.start(this)
