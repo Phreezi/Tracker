@@ -24,8 +24,25 @@ object Prefs {
     fun minDistanceM(ctx: Context): Int = p(ctx).getInt("minDistanceM", 15)
     fun setMinDistanceM(ctx: Context, v: Int) = p(ctx).edit().putInt("minDistanceM", v).apply()
 
-    fun heartbeatMin(ctx: Context): Int = p(ctx).getInt("heartbeatMin", 10)
-    fun setHeartbeatMin(ctx: Context, v: Int) = p(ctx).edit().putInt("heartbeatMin", v).apply()
+
+    // --- Estado do envio (para o ecrã e para o «pedir agora» do site) ----------
+    /** Último pedido de localização (pedidoEm do rastreio/config) já respondido. */
+    fun lastPedido(ctx: Context): Long = p(ctx).getLong("lastPedido", 0L)
+    fun setLastPedido(ctx: Context, v: Long) = p(ctx).edit().putLong("lastPedido", v).apply()
+
+    /** Quando foi o último envio aceite pelo Firestore (ms). */
+    fun lastSentAt(ctx: Context): Long = p(ctx).getLong("lastSentAt", 0L)
+    fun setLastSentAt(ctx: Context, v: Long) = p(ctx).edit().putLong("lastSentAt", v).apply()
+
+    /** Última posição enviada — serve para dizer «no mesmo local». */
+    fun lastLocation(ctx: Context): Pair<Double, Double>? {
+        val a = (p(ctx).getString("lastLoc", null) ?: return null).split(',')
+        val lat = a.getOrNull(0)?.toDoubleOrNull() ?: return null
+        val lng = a.getOrNull(1)?.toDoubleOrNull() ?: return null
+        return lat to lng
+    }
+    fun setLastLocation(ctx: Context, lat: Double, lng: Double) =
+        p(ctx).edit().putString("lastLoc", "$lat,$lng").apply()
 
     fun isConfigured(ctx: Context): Boolean = deviceName(ctx).isNotEmpty()
 }

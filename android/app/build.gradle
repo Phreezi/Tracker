@@ -11,8 +11,8 @@ android {
         applicationId "pt.familia.tracker"
         minSdk 24
         targetSdk 34
-        versionCode 5
-        versionName "2.3"
+        versionCode 6
+        versionName "3.0"
 
         // Palavra-passe da conta tracker@sipfa.local embutida no build — assim o
         // telemóvel só precisa de um NOME. Vem do secret do GitHub
