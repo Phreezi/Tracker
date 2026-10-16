@@ -119,6 +119,9 @@ object FirestoreUploader {
         if (p.has("spd")) f.put("spd", JSONObject().put("doubleValue", p.optDouble("spd")))
         if (p.has("bat")) f.put("bat", JSONObject().put("integerValue", p.optInt("bat").toString()))
         if (nome.isNotEmpty()) f.put("nome", JSONObject().put("stringValue", nome.take(60)))
+        // Resposta a um «pedir localização agora» do site.
+        if (p.has("pedido")) f.put("pedido", JSONObject().put("integerValue", p.optLong("pedido").toString()))
+        if (p.has("mesmoLocal")) f.put("mesmoLocal", JSONObject().put("booleanValue", p.optBoolean("mesmoLocal")))
         f.put("atualizadoEm", JSONObject().put("integerValue", received.toString()))
         return f
     }
@@ -132,6 +135,45 @@ object FirestoreUploader {
         if (writes.length() == 0) return true
         val (code, _) = post("$DOCS:commit", JSONObject().put("writes", writes).toString(), token)
         return code in 200..299
+    }
+
+    /**
+     * Lê as ordens do site (doc rastreio/config) — intervalo, distância mínima,
+     * janela «ao vivo» e pedido de localização. Devolve os valores já simples
+     * (números/booleanos/texto); objeto vazio se o doc ainda não existe; null
+     * se falhou (sem rede, sem sessão).
+     */
+    fun getConfig(ctx: Context): JSONObject? {
+        val token = ensureToken(ctx) ?: return null
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = (URL("$DOCS/rastreio/config").openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 15000
+                readTimeout = 15000
+                setRequestProperty("Authorization", "Bearer $token")
+            }
+            val code = conn.responseCode
+            if (code == 404) return JSONObject()
+            if (code !in 200..299) return null
+            val j = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+            val f = j.optJSONObject("fields") ?: return JSONObject()
+            val out = JSONObject()
+            for (k in f.keys()) {
+                val v = f.optJSONObject(k) ?: continue
+                when {
+                    v.has("integerValue") -> out.put(k, v.optString("integerValue").toLongOrNull() ?: 0L)
+                    v.has("doubleValue")  -> out.put(k, v.optDouble("doubleValue"))
+                    v.has("booleanValue") -> out.put(k, v.optBoolean("booleanValue"))
+                    v.has("stringValue")  -> out.put(k, v.optString("stringValue"))
+                }
+            }
+            out
+        } catch (e: Exception) {
+            null
+        } finally {
+            conn?.disconnect()
+        }
     }
 
     /** Envia o lote. true = tudo aceite (a fila pode ser limpa). */
