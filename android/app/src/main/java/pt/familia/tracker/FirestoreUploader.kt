@@ -25,11 +25,9 @@ object FirestoreUploader {
     // A apiKey do Firebase é pública (vai no site do SIPFA); não é segredo.
     private const val API_KEY = "AIzaSyA3GaOEEPerKqLbtIuUKUbtB23Z_IPLk9Q"
     private const val PROJECT = "sipfa-52e5b"
-    // Conta dedicada do telemóvel. O e-mail é fixo; a palavra-passe vem embutida
-    // no build (BuildConfig.ACCOUNT_PASSWORD, do secret TRACKER_ACCOUNT_PASSWORD)
-    // para o telemóvel só precisar de um nome.
-    private const val EMAIL = "tracker@sipfa.local"
-    private fun password() = BuildConfig.ACCOUNT_PASSWORD
+    // O telemóvel entra como CONVIDADO (anónimo): sem conta nem palavra-passe,
+    // só precisa de um nome. As regras do Firestore deixam o anónimo escrever
+    // apenas rastreio/rastreioHist e não ler nada.
     private const val DOCS = "https://firestore.googleapis.com/v1/projects/$PROJECT/databases/(default)/documents"
     private const val MAX_WRITES = 400   // o Firestore aceita até 500 por commit
 
@@ -88,12 +86,10 @@ object FirestoreUploader {
             }
         }
 
-        // Login com a conta embutida (o telemóvel não guarda credenciais).
-        val pass = password()
-        if (pass.isEmpty()) return null
+        // Entrar como convidado (anónimo). Sem conta, sem palavra-passe.
         val (code, text) = post(
-            "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$API_KEY",
-            JSONObject().put("email", EMAIL).put("password", pass).put("returnSecureToken", true).toString()
+            "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$API_KEY",
+            JSONObject().put("returnSecureToken", true).toString()
         )
         if (code in 200..299) {
             val j = JSONObject(text)
