@@ -17,13 +17,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Ecrã de configuração: URL do servidor, token e botões de permissões.
+ * Ecrã de configuração: nome do telemóvel e permissões.
  * Construído em código para não depender de recursos de layout.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var urlField: EditText
-    private lateinit var tokenField: EditText
+    private lateinit var nameField: EditText
     private lateinit var status: TextView
 
     private val fineLauncher =
@@ -48,25 +47,16 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, pad)
         })
 
-        root.addView(label("Endereço do servidor (ex.: https://o-meu-servidor.com)"))
-        urlField = EditText(this).apply {
-            inputType = InputType.TYPE_TEXT_VARIATION_URI
-            hint = "https://..."
-            setText(Prefs.serverUrl(this@MainActivity))
+        root.addView(label("Nome deste telemóvel (ex.: Gabriela)"))
+        nameField = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            hint = "nome"
+            setText(Prefs.deviceName(this@MainActivity))
         }
-        root.addView(urlField)
-
-        root.addView(label("Token do dispositivo (o mesmo do servidor)"))
-        tokenField = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-            hint = "DEVICE_TOKEN"
-            setText(Prefs.deviceToken(this@MainActivity))
-        }
-        root.addView(tokenField)
+        root.addView(nameField)
 
         root.addView(button("Guardar configuração") {
-            Prefs.setServerUrl(this, urlField.text.toString())
-            Prefs.setDeviceToken(this, tokenField.text.toString())
+            Prefs.setDeviceName(this, nameField.text.toString())
             toast("Guardado.")
             refresh()
         })
@@ -91,7 +81,7 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(spacer(pad))
         root.addView(button("▶ Iniciar partilha") {
-            if (!Prefs.isConfigured(this)) { toast("Preenche o servidor e o token primeiro."); return@button }
+            if (!Prefs.isConfigured(this)) { toast("Escreve o nome do telemóvel primeiro."); return@button }
             if (!hasFine()) { toast("Falta a permissão de localização."); return@button }
             Prefs.setEnabled(this, true)
             LocationService.start(this)

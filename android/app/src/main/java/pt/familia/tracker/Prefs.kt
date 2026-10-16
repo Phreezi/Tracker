@@ -2,18 +2,18 @@ package pt.familia.tracker
 
 import android.content.Context
 
-/** Guarda a configuração local (URL do servidor, token e definições de envio). */
+/** Guarda a configuração local (conta do Firestore e definições de envio). */
 object Prefs {
     private const val FILE = "tracker_prefs"
     private fun p(ctx: Context) = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
-    fun serverUrl(ctx: Context): String = p(ctx).getString("serverUrl", "") ?: ""
-    fun setServerUrl(ctx: Context, v: String) =
-        p(ctx).edit().putString("serverUrl", v.trim().trimEnd('/')).apply()
-
-    fun deviceToken(ctx: Context): String = p(ctx).getString("deviceToken", "") ?: ""
-    fun setDeviceToken(ctx: Context, v: String) =
-        p(ctx).edit().putString("deviceToken", v.trim()).apply()
+    // --- Identificação do telemóvel ------------------------------------------
+    // O telemóvel só precisa de um NOME (ex.: "Gabriela"). A conta do Firestore
+    // (tracker@sipfa.local) e a palavra-passe estão embutidas na app, por isso
+    // quem instala não tem de saber credenciais — só escreve o nome.
+    fun deviceName(ctx: Context): String = p(ctx).getString("deviceName", "") ?: ""
+    fun setDeviceName(ctx: Context, v: String) =
+        p(ctx).edit().putString("deviceName", v.trim()).apply()
 
     fun enabled(ctx: Context): Boolean = p(ctx).getBoolean("enabled", false)
     fun setEnabled(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("enabled", v).apply()
@@ -27,6 +27,5 @@ object Prefs {
     fun heartbeatMin(ctx: Context): Int = p(ctx).getInt("heartbeatMin", 10)
     fun setHeartbeatMin(ctx: Context, v: Int) = p(ctx).edit().putInt("heartbeatMin", v).apply()
 
-    fun isConfigured(ctx: Context): Boolean =
-        serverUrl(ctx).isNotEmpty() && deviceToken(ctx).isNotEmpty()
+    fun isConfigured(ctx: Context): Boolean = deviceName(ctx).isNotEmpty()
 }
