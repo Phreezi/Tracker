@@ -25,6 +25,11 @@ object FirestoreUploader {
     // A apiKey do Firebase é pública (vai no site do SIPFA); não é segredo.
     private const val API_KEY = "AIzaSyA3GaOEEPerKqLbtIuUKUbtB23Z_IPLk9Q"
     private const val PROJECT = "sipfa-52e5b"
+    // Conta dedicada do telemóvel. O e-mail é fixo; a palavra-passe vem embutida
+    // no build (BuildConfig.ACCOUNT_PASSWORD, do secret TRACKER_ACCOUNT_PASSWORD)
+    // para o telemóvel só precisar de um nome.
+    private const val EMAIL = "tracker@sipfa.local"
+    private fun password() = BuildConfig.ACCOUNT_PASSWORD
     private const val DOCS = "https://firestore.googleapis.com/v1/projects/$PROJECT/databases/(default)/documents"
     private const val MAX_WRITES = 400   // o Firestore aceita até 500 por commit
 
@@ -83,13 +88,12 @@ object FirestoreUploader {
             }
         }
 
-        // Login com e-mail + palavra-passe da conta do telemóvel.
-        val email = Prefs.accountEmail(ctx)
-        val pass = Prefs.accountPassword(ctx)
-        if (email.isEmpty() || pass.isEmpty()) return null
+        // Login com a conta embutida (o telemóvel não guarda credenciais).
+        val pass = password()
+        if (pass.isEmpty()) return null
         val (code, text) = post(
             "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$API_KEY",
-            JSONObject().put("email", email).put("password", pass).put("returnSecureToken", true).toString()
+            JSONObject().put("email", EMAIL).put("password", pass).put("returnSecureToken", true).toString()
         )
         if (code in 200..299) {
             val j = JSONObject(text)
@@ -102,7 +106,7 @@ object FirestoreUploader {
     }
 
     /** Converte um ponto {t,lat,lng,acc,spd,bat} em `fields` tipados do Firestore. */
-    private fun fields(p: JSONObject, received: Long): JSONObject {
+    private fun fields(p: JSONObject, received: Long, nome: String): JSONObject {
         val f = JSONObject()
         f.put("t", JSONObject().put("integerValue",
             (p.optLong("t").takeIf { it > 0 } ?: received).toString()))
@@ -111,13 +115,14 @@ object FirestoreUploader {
         if (p.has("acc")) f.put("acc", JSONObject().put("doubleValue", p.optDouble("acc")))
         if (p.has("spd")) f.put("spd", JSONObject().put("doubleValue", p.optDouble("spd")))
         if (p.has("bat")) f.put("bat", JSONObject().put("integerValue", p.optInt("bat").toString()))
+        if (nome.isNotEmpty()) f.put("nome", JSONObject().put("stringValue", nome.take(60)))
         f.put("atualizadoEm", JSONObject().put("integerValue", received.toString()))
         return f
     }
 
-    private fun histWrite(p: JSONObject, received: Long): JSONObject {
+    private fun histWrite(p: JSONObject, received: Long, nome: String): JSONObject {
         val name = "projects/$PROJECT/databases/(default)/documents/rastreioHist/${randomId()}"
-        return JSONObject().put("update", JSONObject().put("name", name).put("fields", fields(p, received)))
+        return JSONObject().put("update", JSONObject().put("name", name).put("fields", fields(p, received, nome)))
     }
 
     private fun commit(writes: JSONArray, token: String): Boolean {
@@ -131,6 +136,7 @@ object FirestoreUploader {
         if (points.isEmpty()) return true
         val token = ensureToken(ctx) ?: return false
         val now = System.currentTimeMillis()
+        val nome = Prefs.deviceName(ctx)
 
         val validos = points.filter { it.has("lat") && it.has("lng") }
         if (validos.isEmpty()) return true
@@ -142,7 +148,7 @@ object FirestoreUploader {
             val bloco = JSONArray()
             var n = 0
             while (i < validos.size && n < MAX_WRITES) {
-                bloco.put(histWrite(validos[i], now)); i++; n++
+                bloco.put(histWrite(validos[i], now, nome)); i++; n++
             }
             if (!commit(bloco, token)) return false
         }
@@ -151,7 +157,7 @@ object FirestoreUploader {
         val atual = JSONArray().put(
             JSONObject().put("update", JSONObject()
                 .put("name", "projects/$PROJECT/databases/(default)/documents/rastreio/atual")
-                .put("fields", fields(validos.last(), now)))
+                .put("fields", fields(validos.last(), now, nome)))
         )
         return commit(atual, token)
     }

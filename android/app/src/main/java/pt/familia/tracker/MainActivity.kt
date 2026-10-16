@@ -17,13 +17,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Ecrã de configuração: conta do telemóvel (SIPFA), palavra-passe e permissões.
+ * Ecrã de configuração: nome do telemóvel e permissões.
  * Construído em código para não depender de recursos de layout.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var emailField: EditText
-    private lateinit var passwordField: EditText
+    private lateinit var nameField: EditText
     private lateinit var status: TextView
 
     private val fineLauncher =
@@ -48,25 +47,16 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, pad)
         })
 
-        root.addView(label("Conta do telemóvel (SIPFA / Firebase)"))
-        emailField = EditText(this).apply {
-            inputType = InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-            hint = "tracker@sipfa.local"
-            setText(Prefs.accountEmail(this@MainActivity))
+        root.addView(label("Nome deste telemóvel (ex.: Gabriela)"))
+        nameField = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            hint = "nome"
+            setText(Prefs.deviceName(this@MainActivity))
         }
-        root.addView(emailField)
-
-        root.addView(label("Palavra-passe da conta"))
-        passwordField = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            hint = "palavra-passe"
-            setText(Prefs.accountPassword(this@MainActivity))
-        }
-        root.addView(passwordField)
+        root.addView(nameField)
 
         root.addView(button("Guardar configuração") {
-            Prefs.setAccountEmail(this, emailField.text.toString())
-            Prefs.setAccountPassword(this, passwordField.text.toString())
+            Prefs.setDeviceName(this, nameField.text.toString())
             toast("Guardado.")
             refresh()
         })
@@ -91,7 +81,7 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(spacer(pad))
         root.addView(button("▶ Iniciar partilha") {
-            if (!Prefs.isConfigured(this)) { toast("Preenche a conta e a palavra-passe primeiro."); return@button }
+            if (!Prefs.isConfigured(this)) { toast("Escreve o nome do telemóvel primeiro."); return@button }
             if (!hasFine()) { toast("Falta a permissão de localização."); return@button }
             Prefs.setEnabled(this, true)
             LocationService.start(this)
