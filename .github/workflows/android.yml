@@ -37,6 +37,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Compilar APK (release, assinado com chave de debug)
+        env:
+          # Palavra-passe da conta tracker@sipfa.local, embutida no APK para o
+          # telemóvel só precisar de um nome. Definir em Settings → Secrets.
+          TRACKER_ACCOUNT_PASSWORD: ${{ secrets.TRACKER_ACCOUNT_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Publicar APK como artefacto

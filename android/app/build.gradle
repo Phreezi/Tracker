@@ -11,8 +11,21 @@ android {
         applicationId "pt.familia.tracker"
         minSdk 24
         targetSdk 34
-        versionCode 4
-        versionName "2.2"
+        versionCode 5
+        versionName "2.3"
+
+        // Palavra-passe da conta tracker@sipfa.local embutida no build — assim o
+        // telemóvel só precisa de um NOME. Vem do secret do GitHub
+        // TRACKER_ACCOUNT_PASSWORD (ou -PtrackerPassword=… no PC); nunca do
+        // código. Escapa \ e " para ficar um literal Java válido.
+        def _pw = (project.findProperty('trackerPassword')
+                    ?: System.getenv('TRACKER_ACCOUNT_PASSWORD') ?: '')
+                    .toString().replace('\\', '\\\\').replace('"', '\\"')
+        buildConfigField "String", "ACCOUNT_PASSWORD", "\"${_pw}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {
